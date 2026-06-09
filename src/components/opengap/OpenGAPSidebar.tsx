@@ -25,6 +25,18 @@ export const opengapSidebarGroups = [
     ],
   },
   {
+    label: "Cookbook",
+    slug: "cookbook",
+    items: [
+      { id: "cookbook-claude-code", label: "Claude Code" },
+      { id: "cookbook-cursor", label: "Cursor" },
+      { id: "cookbook-crewai", label: "CrewAI" },
+      { id: "cookbook-opencode", label: "OpenCode" },
+      { id: "cookbook-gemini", label: "Gemini CLI" },
+      { id: "cookbook-codex", label: "Codex CLI" },
+    ],
+  },
+  {
     label: "Skills",
     slug: "skills",
     items: [

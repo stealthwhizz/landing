@@ -16,6 +16,12 @@ import { SkillsSection } from "@/components/SkillsSection";
 import { SkillsFlowSection } from "@/components/SkillsFlowSection";
 import { ComplianceSection } from "@/components/ComplianceSection";
 import { FAQSection } from "@/components/FAQSection";
+import { CookbookClaudeCode } from "@/components/opengap/cookbook/CookbookClaudeCode";
+import { CookbookCursor } from "@/components/opengap/cookbook/CookbookCursor";
+import { CookbookCrewAI } from "@/components/opengap/cookbook/CookbookCrewAI";
+import { CookbookOpenCode } from "@/components/opengap/cookbook/CookbookOpenCode";
+import { CookbookGemini } from "@/components/opengap/cookbook/CookbookGemini";
+import { CookbookCodex } from "@/components/opengap/cookbook/CookbookCodex";
 import { Footer } from "@/components/Footer";
 
 const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
@@ -30,6 +36,12 @@ const SECTION_COMPONENTS: Record<string, React.ComponentType> = {
   skillflow: SkillsFlowSection,
   compliance: ComplianceSection,
   faq: FAQSection,
+  "cookbook-claude-code": CookbookClaudeCode,
+  "cookbook-cursor": CookbookCursor,
+  "cookbook-crewai": CookbookCrewAI,
+  "cookbook-opencode": CookbookOpenCode,
+  "cookbook-gemini": CookbookGemini,
+  "cookbook-codex": CookbookCodex,
 };
 
 const ALL_ITEMS = opengapSidebarGroups.flatMap((g) => g.items);
