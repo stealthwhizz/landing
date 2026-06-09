@@ -25,6 +25,19 @@ export const opengapSidebarGroups = [
     ],
   },
   {
+    label: "Cookbook",
+    slug: "cookbook",
+    items: [
+      { id: "cookbook-langgraph", label: "LangGraph" },
+      { id: "cookbook-crewai", label: "CrewAI" },
+      { id: "cookbook-autogen", label: "AutoGen" },
+      { id: "cookbook-langchain", label: "LangChain" },
+      { id: "cookbook-openai-agents", label: "OpenAI Agents SDK" },
+      { id: "cookbook-claude-sdk", label: "Claude SDK" },
+      { id: "cookbook-google-adk", label: "Google ADK" },
+    ],
+  },
+  {
     label: "Skills",
     slug: "skills",
     items: [
