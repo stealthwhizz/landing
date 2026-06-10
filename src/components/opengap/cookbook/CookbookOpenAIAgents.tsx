@@ -72,7 +72,16 @@ model:
   preferred: gpt-4o
 tools:
   - transfer-to-faq-agent
-  - transfer-to-seat-booking-agent`;
+  - transfer-to-seat-booking-agent
+agents:
+  faq-agent:
+    description: Answers frequently asked questions about the airline
+    delegation:
+      mode: auto
+  seat-booking-agent:
+    description: Updates seat assignments for airline passengers
+    delegation:
+      mode: auto`;
 
 const soulMd = `# Soul
 
@@ -114,7 +123,23 @@ const toolTransferFaq = `name: transfer-to-faq-agent
 description: Transfer the customer to the FAQ agent.
 input_schema:
   type: object
-  properties: {}`;
+  properties: {}
+implementation:
+  type: script
+  path: tools/transfer_to_faq_agent.py
+  runtime: python3
+  timeout: 30`;
+
+const toolTransferSeat = `name: transfer-to-seat-booking-agent
+description: Transfer the customer to the seat booking agent.
+input_schema:
+  type: object
+  properties: {}
+implementation:
+  type: script
+  path: tools/transfer_to_seat_booking_agent.py
+  runtime: python3
+  timeout: 30`;
 
 const toolFaqLookup = `name: faq-lookup-tool
 description: Lookup frequently asked questions about the airline.
@@ -125,7 +150,32 @@ input_schema:
       type: string
       description: The customer's question
   required:
-    - question`;
+    - question
+implementation:
+  type: script
+  path: tools/faq_lookup_tool.py
+  runtime: python3
+  timeout: 30`;
+
+const toolUpdateSeat = `name: update-seat
+description: Update the seat for a given confirmation number.
+input_schema:
+  type: object
+  properties:
+    confirmation_number:
+      type: string
+      description: The booking confirmation number
+    new_seat:
+      type: string
+      description: The desired seat assignment
+  required:
+    - confirmation_number
+    - new_seat
+implementation:
+  type: script
+  path: tools/update_seat.py
+  runtime: python3
+  timeout: 30`;
 
 const validateCmd = `opengap validate -d ./triage-agent-opengap
 opengap info -d ./triage-agent-opengap`;
@@ -208,6 +258,10 @@ export function CookbookOpenAIAgents() {
               <CodeBlock code={toolTransferFaq} filename="tools/transfer-to-faq-agent.yaml" />
             </div>
             <div>
+              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">tools/transfer-to-seat-booking-agent.yaml</code>:</p>
+              <CodeBlock code={toolTransferSeat} filename="tools/transfer-to-seat-booking-agent.yaml" />
+            </div>
+            <div>
               <p className="text-[11px] text-muted-foreground font-body mb-2">Sub-agent: <code className="text-primary text-xs">agents/faq-agent/agent.yaml</code>:</p>
               <CodeBlock code={subFaqYaml} filename="agents/faq-agent/agent.yaml" />
             </div>
@@ -220,8 +274,12 @@ export function CookbookOpenAIAgents() {
               <CodeBlock code={toolFaqLookup} filename="agents/faq-agent/tools/faq-lookup-tool.yaml" />
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2">Sub-agent: <code className="text-primary text-xs">agents/seat-booking-agent/agent.yaml</code> (same pattern):</p>
+              <p className="text-[11px] text-muted-foreground font-body mb-2">Sub-agent: <code className="text-primary text-xs">agents/seat-booking-agent/agent.yaml</code>:</p>
               <CodeBlock code={subSeatYaml} filename="agents/seat-booking-agent/agent.yaml" />
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground font-body mb-2">Sub-agent: <code className="text-primary text-xs">agents/seat-booking-agent/tools/update-seat.yaml</code>:</p>
+              <CodeBlock code={toolUpdateSeat} filename="agents/seat-booking-agent/tools/update-seat.yaml" />
             </div>
           </div>
         </motion.div>

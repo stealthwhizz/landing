@@ -1,178 +1,136 @@
 import { motion } from "framer-motion";
 import { CodeBlock } from "@/components/gitAgent/CodeBlock";
 
-const projectStructure = `cris-m/langgraph_examples/call_support_agent/
-└── agent/
-    ├── graph.py        ← StateGraph: call_agent, speak, transfer, hold, end nodes
-    ├── tools.py        ← next_action, upsert_memory tools
-    ├── prompt.py       ← SYSTEM_PROMPT (Acme Corp support agent)
-    ├── state.py        ← State TypedDict
-    └── configuration.py← model, system_prompt, caller config`;
+const projectStructure = `my-langchain-agent/
+├── agent.py       ← AgentExecutor, prompt, model, tools
+├── tools.py       ← @tool decorated functions
+└── requirements.txt`;
 
-const promptPy = `# agent/prompt.py — system prompt (excerpt)
-SYSTEM_PROMPT = """You are an AI customer support representative for Acme Corporation.
+const agentPy = `# agent.py
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_anthropic import ChatAnthropic
+from langchain_core.prompts import ChatPromptTemplate
+from tools import get_order_status, initiate_return
 
-Your core responsibilities:
-- Greet the customer and collect their name and issue
-- Attempt to resolve the issue before escalating
-- Route to the appropriate department if escalation is needed
-- Always call next_action after each customer response
+SYSTEM_PROMPT = """You are a customer support agent for an e-commerce platform.
+Help customers with order status and return requests.
+Always verify the order ID before discussing order details.
 
-Department routing:
-- Technical Support: +1-800-555-0101
-- Billing:           +1-800-555-0102
-- Warranty Claims:   +1-800-555-0103
+Rules:
+- Never share one customer's data with another
+- Always confirm before initiating a return"""
 
-Communication guidelines:
-- Use clear, concise, voice-optimized language
-- Confirm customer consent before any transfer
+prompt = ChatPromptTemplate.from_messages([
+    ("system", SYSTEM_PROMPT),
+    ("human", "{input}"),
+    ("placeholder", "{agent_scratchpad}"),
+])
 
-Current time: {time}
-Customer memories: {memories}"""`;
+model = ChatAnthropic(model="claude-sonnet-4-6")
+tools = [get_order_status, initiate_return]
 
-const toolsPy = `# agent/tools.py (key excerpt)
-from langchain_core.tools import InjectedToolCallId
-from langgraph.types import Command
+agent = create_tool_calling_agent(model, tools, prompt)
+agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)`;
 
-def next_action(
-    tool_call_id: Annotated[str, InjectedToolCallId],
-    action: Literal["continue", "transfer", "hold", "wait", "end"],
-    transfer_reason: Optional[str] = None,
-    transfer_number: Optional[str] = None,
-) -> Command:
-    """Update conversation state: continue, transfer, hold, wait, or end the call."""
-    updates = {"next_action": action}
-    if action == "transfer":
-        updates["transfer_reason"] = transfer_reason
-        updates["transfer_number"] = transfer_number
-    return Command(update={"messages": [ToolMessage(...)], **updates})
+const toolsPy = `# tools.py
+from langchain_core.tools import tool
 
-async def upsert_memory(
-    content: str,
-    context: str,
-    *,
-    memory_id: Optional[uuid.UUID] = None,
-    config: Annotated[RunnableConfig, InjectedToolArg],
-    store: Annotated[BaseStore, InjectedStore],
-) -> str:
-    """Create or update a memory entry indexed by caller's phone number."""
-    await store.aput(("memories", caller_number), key=str(id),
-                     value={"content": content, "context": context})
-    return f"Stored memory {id}"
+@tool
+def get_order_status(order_id: str) -> str:
+    """Get the current status of a customer order by order ID."""
+    # real impl queries your order database
+    return f"Order {order_id} is being processed."
 
-tools = [next_action, upsert_memory]`;
+@tool
+def initiate_return(order_id: str, reason: str) -> str:
+    """Initiate a return request for an order.
 
-const graphPy = `# agent/graph.py (key excerpt)
-from langgraph.graph import END, START, StateGraph
-from langgraph.prebuilt import ToolNode
-
-llm = load_chat_model(configurable.model).bind_tools(tools)
-
-builder = StateGraph(State, config_schema=Configuration)
-builder.add_node("agent", call_agent)   # calls LLM with system_prompt + memory
-builder.add_node("speak",  speak)       # generates TwiML speech
-builder.add_node("tools",  ToolNode(tools))
-builder.add_node("conversation", conversation)  # Twilio Gather (speech input)
-builder.add_node("transfer_call", transfer_call)
-builder.add_node("hold_call", hold_call)
-builder.add_node("end_call", end_call)
-
-builder.add_edge(START, "agent")
-builder.add_conditional_edges("agent", route_after_agent, {"tools": "tools", "speak": "speak"})
-builder.add_conditional_edges("speak", route_after_speak, {
-    "conversation": "conversation", "transfer": "transfer_call",
-    "hold": "hold_call", "end": "end_call"
-})
-builder.add_edge("tools", "agent")
-graph = builder.compile()`;
+    Args:
+        order_id: The order to return.
+        reason: The reason for the return.
+    """
+    return f"Return initiated for order {order_id}. Reason: {reason}."`;
 
 const agentYaml = `spec_version: 0.1.0
-name: call-support-agent
+name: customer-support-agent
 version: 0.1.0
-description: AI voice customer support agent for Acme Corporation
+description: Customer support agent for an e-commerce platform
 model:
   preferred: claude-sonnet-4-6
 tools:
-  - next-action
-  - upsert-memory`;
+  - get-order-status
+  - initiate-return`;
 
 const soulMd = `# Soul
 
 ## Core Identity
-You are an AI customer support representative for Acme Corporation.
+You are a customer support agent for an e-commerce platform.
 
-## Core Responsibilities
-- Greet the customer and collect their name and issue
-- Attempt to resolve the issue before escalating
-- Route to the appropriate department if escalation is needed
-- Always call next_action after each customer response
-
-## Communication Guidelines
-- Use clear, concise, voice-optimized language
-- Confirm customer consent before any transfer`;
+## Purpose
+Help customers with order status and return requests.
+Always verify the order ID before discussing order details.`;
 
 const rulesMd = `# Rules
 
-- Always attempt resolution before escalating
-- Collect customer name and issue before routing
-- Confirm consent before any transfer
-- Do not fabricate department numbers`;
+- Never share one customer's data with another
+- Always confirm before initiating a return`;
 
-const toolNextAction = `name: next-action
-description: Update conversation flow — continue, transfer to a department, hold, or end the call.
+const toolGetOrder = `name: get-order-status
+description: Get the current status of a customer order by order ID.
 input_schema:
   type: object
   properties:
-    action:
+    order_id:
       type: string
-      enum: [continue, transfer, hold, wait, end]
-      description: The next action to take
-    transfer_reason:
-      type: string
-      description: Reason for transfer (required if action is transfer)
-    transfer_number:
-      type: string
-      description: Department phone number to transfer to
+      description: The order ID to look up
   required:
-    - action`;
+    - order_id
+implementation:
+  type: script
+  path: tools/get_order_status.py
+  runtime: python3
+  timeout: 30`;
 
-const toolUpsertMemory = `name: upsert-memory
-description: Store or update a customer memory entry indexed by caller phone number.
+const toolReturn = `name: initiate-return
+description: Initiate a return request for an order.
 input_schema:
   type: object
   properties:
-    content:
+    order_id:
       type: string
-      description: The information to store (e.g. customer statement or preference)
-    context:
+      description: The order to return
+    reason:
       type: string
-      description: Additional context about when or how this information was obtained
-    memory_id:
-      type: string
-      description: UUID of existing memory to update (omit to create new)
+      description: The reason for the return
   required:
-    - content
-    - context`;
+    - order_id
+    - reason
+implementation:
+  type: script
+  path: tools/initiate_return.py
+  runtime: python3
+  timeout: 30`;
 
-const validateCmd = `opengap validate -d ./call-support-agent-opengap
-opengap info -d ./call-support-agent-opengap`;
+const validateCmd = `opengap validate -d ./customer-support-opengap
+opengap info -d ./customer-support-opengap`;
 
 const mapping = [
-  ["configurable.system_prompt (from prompt.py)", "SOUL.md + RULES.md"],
-  ["configurable.model (from configuration.py)", "agent.yaml → model.preferred"],
-  ["tools list (next_action, upsert_memory)", "agent.yaml → tools[] + tools/<name>.yaml"],
-  ["Each tool function docstring + args", "tools/<name>.yaml description + input_schema"],
-  ["StateGraph nodes (speak, conversation, transfer_call…)", "stays in framework — voice/Twilio runtime"],
-  ["ChatPromptTemplate + memory formatting", "stays in framework — prompt composition"],
-  ["Twilio TwiML (VoiceResponse, gather, dial)", "stays in framework — voice infrastructure"],
+  ["SYSTEM_PROMPT — identity/purpose lines", "SOUL.md"],
+  ["SYSTEM_PROMPT — Rules: section", "RULES.md"],
+  ["ChatAnthropic(model=...)", "agent.yaml → model.preferred"],
+  ["@tool function names (kebab-case)", "agent.yaml → tools[]"],
+  ["@tool docstring + typed args", "tools/<name>.yaml description + input_schema"],
+  ["Existing tools.py function", "tools/<name>.yaml → implementation.path"],
+  ["AgentExecutor + ChatPromptTemplate", "stays in framework — runtime execution loop"],
+  ["agent_scratchpad placeholder", "stays in framework — internal reasoning trace"],
 ];
 
 const steps = [
-  { step: "1", desc: "Extract the SYSTEM_PROMPT from prompt.py → split into SOUL.md (identity, responsibilities) and RULES.md (must/never constraints)." },
-  { step: "2", desc: "Take configurable.model from configuration.py → write to agent.yaml → model.preferred (e.g. claude-sonnet-4-6)." },
-  { step: "3", desc: "List each function in the tools list → add kebab-case to agent.yaml → tools (next_action → next-action, upsert_memory → upsert-memory)." },
-  { step: "4", desc: "Create tools/<name>.yaml for each tool — copy the docstring as description and the typed parameters as input_schema." },
-  { step: "5", desc: "StateGraph nodes (speak, conversation, transfer_call, hold_call), Twilio TwiML, and memory store logic stay in graph.py — they are voice-call runtime wiring." },
+  { step: "1", desc: "Split SYSTEM_PROMPT by content: who-you-are and purpose lines → SOUL.md. Hard rules (never, always) → RULES.md." },
+  { step: "2", desc: "Take the model string from ChatAnthropic(model=...) → write to agent.yaml → model.preferred." },
+  { step: "3", desc: "List each @tool function name → add to agent.yaml → tools as kebab-case (get_order_status → get-order-status)." },
+  { step: "4", desc: "Create tools/<name>.yaml for each tool — copy the docstring as description, typed args as input_schema, and point implementation.path to the existing Python file." },
+  { step: "5", desc: "AgentExecutor, ChatPromptTemplate, and the agent_scratchpad placeholder stay in agent.py — they are LangChain runtime wiring." },
   { step: "6", desc: "Run opengap validate to confirm the structure is correct." },
 ];
 
@@ -185,39 +143,34 @@ export function CookbookLangChain() {
           <p className="text-xs text-muted-foreground/50 font-body mb-1">OpenGAP / Cookbook /</p>
           <h2 className="text-2xl font-bold text-foreground mb-2 font-heading">LangChain → OpenGAP</h2>
           <p className="text-sm text-muted-foreground font-body leading-relaxed">
-            Based on <code className="text-primary text-xs">cris-m/langgraph_examples</code> call support agent — a voice-based
-            customer support agent using LangChain + LangGraph + Twilio. The agent identity lives in
-            <code className="text-primary text-xs"> prompt.py</code>; the graph wiring and Twilio infrastructure stay in the framework.
+            LangChain agents use <code className="text-primary text-xs">AgentExecutor</code>, a <code className="text-primary text-xs">ChatPromptTemplate</code>,
+            and <code className="text-primary text-xs">@tool</code> decorated functions. The system prompt is a plain string
+            inside the template. Converting to OpenGAP means pulling the prompt into files and declaring the tools —
+            the executor and template stay in your code.
           </p>
         </motion.div>
 
-        {/* Part 1 */}
         <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-10">
           <h3 className="text-base font-semibold text-foreground mb-1 font-heading">Part 1 — The LangChain project</h3>
-          <p className="text-[11px] text-muted-foreground/60 font-body mb-4">Voice customer support with call routing, memory, and Twilio integration:</p>
+          <p className="text-[11px] text-muted-foreground/60 font-body mb-4">Customer support agent with two tools:</p>
           <div className="space-y-5">
             <CodeBlock code={projectStructure} filename="file structure" />
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">prompt.py</code> — system prompt:</p>
-              <CodeBlock code={promptPy} filename="agent/prompt.py" />
+              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">tools.py</code>:</p>
+              <CodeBlock code={toolsPy} filename="tools.py" />
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">tools.py</code> — tool definitions:</p>
-              <CodeBlock code={toolsPy} filename="agent/tools.py" />
-            </div>
-            <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">graph.py</code> — StateGraph (excerpt):</p>
-              <CodeBlock code={graphPy} filename="agent/graph.py" />
+              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">agent.py</code>:</p>
+              <CodeBlock code={agentPy} filename="agent.py" />
             </div>
           </div>
         </motion.div>
 
-        {/* Part 2 */}
         <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-10">
           <h3 className="text-base font-semibold text-foreground mb-1 font-heading">Part 2 — What maps to OpenGAP</h3>
           <div className="rounded-md border border-border overflow-hidden text-[11px] font-mono mt-4">
             <div className="grid grid-cols-2 bg-muted/40 border-b border-border px-3 py-1.5 text-[10px] uppercase tracking-widest text-muted-foreground/50">
-              <span>LangChain (call_support_agent)</span><span>OpenGAP</span>
+              <span>LangChain</span><span>OpenGAP</span>
             </div>
             {mapping.map(([from, to], i) => (
               <div key={i} className={`grid grid-cols-2 px-3 py-2 gap-4 border-b border-border last:border-0 ${i % 2 === 0 ? "" : "bg-muted/20"}`}>
@@ -228,7 +181,6 @@ export function CookbookLangChain() {
           </div>
         </motion.div>
 
-        {/* Part 3 */}
         <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-10">
           <h3 className="text-base font-semibold text-foreground mb-1 font-heading">Part 3 — Create the OpenGAP files</h3>
           <div className="space-y-5 mt-4">
@@ -237,31 +189,29 @@ export function CookbookLangChain() {
               <CodeBlock code={agentYaml} filename="agent.yaml" />
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">SOUL.md</code> — identity from SYSTEM_PROMPT:</p>
+              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">SOUL.md</code> — identity lines from SYSTEM_PROMPT:</p>
               <CodeBlock code={soulMd} filename="SOUL.md" />
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">RULES.md</code> — hard constraints from SYSTEM_PROMPT:</p>
+              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">RULES.md</code> — hard rules from SYSTEM_PROMPT:</p>
               <CodeBlock code={rulesMd} filename="RULES.md" />
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">tools/next-action.yaml</code>:</p>
-              <CodeBlock code={toolNextAction} filename="tools/next-action.yaml" />
+              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">tools/get-order-status.yaml</code>:</p>
+              <CodeBlock code={toolGetOrder} filename="tools/get-order-status.yaml" />
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">tools/upsert-memory.yaml</code>:</p>
-              <CodeBlock code={toolUpsertMemory} filename="tools/upsert-memory.yaml" />
+              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">tools/initiate-return.yaml</code>:</p>
+              <CodeBlock code={toolReturn} filename="tools/initiate-return.yaml" />
             </div>
           </div>
         </motion.div>
 
-        {/* Part 4 */}
         <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-10">
           <h3 className="text-base font-semibold text-foreground mb-1 font-heading">Part 4 — Validate</h3>
           <CodeBlock code={validateCmd} filename="terminal" />
         </motion.div>
 
-        {/* Steps */}
         <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
           <h3 className="text-xs uppercase tracking-widest text-muted-foreground/60 mb-3 font-body">What happens step by step</h3>
           <div className="space-y-2">

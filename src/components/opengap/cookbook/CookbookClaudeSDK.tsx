@@ -117,7 +117,12 @@ input_schema:
       type: string
       description: The unique identifier for the customer
   required:
-    - customer_id`;
+    - customer_id
+implementation:
+  type: script
+  path: tools/get_customer_info.py
+  runtime: python3
+  timeout: 30`;
 
 const toolGetOrder = `name: get-order-details
 description: Retrieves the details of a specific order based on the order ID.
@@ -128,7 +133,12 @@ input_schema:
       type: string
       description: The unique identifier for the order
   required:
-    - order_id`;
+    - order_id
+implementation:
+  type: script
+  path: tools/get_order_details.py
+  runtime: python3
+  timeout: 30`;
 
 const toolCancelOrder = `name: cancel-order
 description: Cancels an order based on the provided order ID.
@@ -139,7 +149,12 @@ input_schema:
       type: string
       description: The unique identifier for the order to be cancelled
   required:
-    - order_id`;
+    - order_id
+implementation:
+  type: script
+  path: tools/cancel_order.py
+  runtime: python3
+  timeout: 30`;
 
 const validateCmd = `opengap validate -d ./customer-service-opengap
 opengap info -d ./customer-service-opengap`;
@@ -154,7 +169,7 @@ const mapping = [
 ];
 
 const steps = [
-  { step: "1", desc: "Copy SYSTEM_PROMPT into SOUL.md. Split behavioral rules (always be polite, confirm before cancelling) into RULES.md if needed." },
+  { step: "1", desc: "Copy SYSTEM_PROMPT into SOUL.md. Keep identity, purpose, and behavioral rules together — the Claude SDK has a single flat prompt with no separate rules block." },
   { step: "2", desc: "Take MODEL_NAME → write to agent.yaml → model.preferred (e.g. claude-opus-4-1)." },
   { step: "3", desc: "For each entry in tools[], add a kebab-case name to agent.yaml → tools. get_customer_info → get-customer-info." },
   { step: "4", desc: "Create tools/<name>.yaml for each tool — copy the name (kebab-case), description, and input_schema directly from the tool dict." },

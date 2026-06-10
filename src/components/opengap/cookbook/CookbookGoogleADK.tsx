@@ -83,7 +83,32 @@ name: travel-concierge
 version: 0.1.0
 description: A travel concierge that coordinates specialized sub-agents across the full trip lifecycle
 model:
-  preferred: gemini-2.0-flash`;
+  preferred: gemini-2.0-flash
+agents:
+  inspiration-agent:
+    description: Inspires users and discovers their next vacation destination
+    delegation:
+      mode: auto
+  planning-agent:
+    description: Creates detailed itineraries and schedules
+    delegation:
+      mode: auto
+  booking-agent:
+    description: Books flights and hotels
+    delegation:
+      mode: auto
+  pre-trip-agent:
+    description: Prepares travellers before departure
+    delegation:
+      mode: auto
+  in-trip-agent:
+    description: Provides real-time support during the trip
+    delegation:
+      mode: auto
+  post-trip-agent:
+    description: Handles post-trip feedback and follow-up
+    delegation:
+      mode: auto`;
 
 const soulMd = `# Soul
 
@@ -108,7 +133,8 @@ model:
   preferred: gemini-2.0-flash
 tools:
   - place-agent
-  - poi-agent`;
+  - poi-agent
+  - google-places`;
 
 const subInspirationSoul = `# Soul
 
@@ -133,7 +159,48 @@ input_schema:
       type: string
       description: User preferences or vague idea for a destination
   required:
-    - inspiration_query`;
+    - inspiration_query
+implementation:
+  type: script
+  path: tools/place_agent.py
+  runtime: python3
+  timeout: 30`;
+
+const toolPoiAgent = `name: poi-agent
+description: Suggests activities and points of interest for a specific destination.
+input_schema:
+  type: object
+  properties:
+    destination:
+      type: string
+      description: The city or destination to find activities for
+  required:
+    - destination
+implementation:
+  type: script
+  path: tools/poi_agent.py
+  runtime: python3
+  timeout: 30`;
+
+const toolGooglePlaces = `name: google-places
+description: Search Google Maps for places, attractions, and local businesses near a location.
+input_schema:
+  type: object
+  properties:
+    query:
+      type: string
+      description: Search query for places or attractions
+    location:
+      type: string
+      description: The city or area to search within
+  required:
+    - query
+    - location
+implementation:
+  type: script
+  path: tools/google_places.py
+  runtime: python3
+  timeout: 30`;
 
 const validateCmd = `opengap validate -d ./travel-concierge-opengap
 opengap info -d ./travel-concierge-opengap`;
@@ -232,8 +299,16 @@ export function CookbookGoogleADK() {
               <CodeBlock code={subInspirationSoul} filename="agents/inspiration-agent/SOUL.md" />
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2">Sub-agent tool: <code className="text-primary text-xs">agents/inspiration-agent/tools/place-agent.yaml</code>:</p>
+              <p className="text-[11px] text-muted-foreground font-body mb-2">Sub-agent tool: <code className="text-primary text-xs">agents/inspiration-agent/tools/place-agent.yaml</code> — AgentTool mapped to tool YAML:</p>
               <CodeBlock code={toolPlaceAgent} filename="agents/inspiration-agent/tools/place-agent.yaml" />
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground font-body mb-2">Sub-agent tool: <code className="text-primary text-xs">agents/inspiration-agent/tools/poi-agent.yaml</code>:</p>
+              <CodeBlock code={toolPoiAgent} filename="agents/inspiration-agent/tools/poi-agent.yaml" />
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground font-body mb-2">Sub-agent tool: <code className="text-primary text-xs">agents/inspiration-agent/tools/google-places.yaml</code> — from get_places_toolset():</p>
+              <CodeBlock code={toolGooglePlaces} filename="agents/inspiration-agent/tools/google-places.yaml" />
             </div>
           </div>
         </motion.div>

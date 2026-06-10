@@ -61,7 +61,12 @@ description: Analyze financial news to identify market trends and investment opp
 model:
   preferred: gpt-4o
 tools:
-  - yahoo-finance-news`;
+  - yahoo-finance-news
+agents:
+  communications-specialist:
+    description: Communicate financial insights and market trends to company stakeholders
+    delegation:
+      mode: auto`;
 
 const soulMd = `# Soul
 
@@ -103,7 +108,12 @@ input_schema:
       type: string
       description: Stock ticker or financial topic to search for
   required:
-    - query`;
+    - query
+implementation:
+  type: script
+  path: tools/yahoo_finance_news.py
+  runtime: python3
+  timeout: 30`;
 
 const validateCmd = `opengap validate -d ./financial-analyst-opengap
 opengap info -d ./financial-analyst-opengap`;

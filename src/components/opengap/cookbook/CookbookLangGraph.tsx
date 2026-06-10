@@ -81,7 +81,12 @@ input_schema:
       type: string
       description: The search query
   required:
-    - query`;
+    - query
+implementation:
+  type: script
+  path: tools/search.py
+  runtime: python3
+  timeout: 30`;
 
 const validateCmd = `opengap validate -d ./react-agent-opengap
 opengap info -d ./react-agent-opengap`;
@@ -89,17 +94,17 @@ opengap info -d ./react-agent-opengap`;
 const mapping = [
   ["SYSTEM_PROMPT in prompts.py", "SOUL.md"],
   ["runtime.context.model (from configuration.py)", "agent.yaml → model.preferred"],
-  ["TOOLS list in tools.py (function names)", "agent.yaml → tools[]"],
-  ["Each async tool function + docstring", "tools/<name>.yaml"],
+  ["TOOLS list — function names", "agent.yaml → tools[]"],
+  ["Each tool function + docstring + typed args", "tools/<name>.yaml"],
+  ["implementation.path → existing tools.py function", "tools/<name>.yaml → implementation.path"],
   ["StateGraph nodes + edges in graph.py", "stays in framework — runtime orchestration"],
-  ["State / InputState TypedDicts in state.py", "stays in framework — runtime state"],
 ];
 
 const steps = [
-  { step: "1", desc: "Copy SYSTEM_PROMPT from prompts.py into SOUL.md. Add additional behavioral sections if the prompt grows beyond identity." },
-  { step: "2", desc: "Take the model name from configuration.py (or the load_chat_model call) → write to agent.yaml → model.preferred." },
-  { step: "3", desc: "For each function in the TOOLS list, add a kebab-case entry to agent.yaml → tools (e.g. search stays search, web_search becomes web-search)." },
-  { step: "4", desc: "Create tools/<name>.yaml for each tool — use the function docstring as description, and the typed parameters as input_schema." },
+  { step: "1", desc: "Copy SYSTEM_PROMPT from prompts.py into SOUL.md." },
+  { step: "2", desc: "Take the model name from configuration.py → write to agent.yaml → model.preferred." },
+  { step: "3", desc: "For each function in the TOOLS list, add a kebab-case name to agent.yaml → tools (search stays search, web_search becomes web-search)." },
+  { step: "4", desc: "Create tools/<name>.yaml for each tool — use the docstring as description, typed parameters as input_schema, and point implementation.path to your existing tool file." },
   { step: "5", desc: "StateGraph, ToolNode, routing logic, and State TypedDicts stay in graph.py — they are runtime execution wiring with no OpenGAP equivalent." },
   { step: "6", desc: "Run opengap validate to confirm the structure is correct." },
 ];
@@ -113,34 +118,32 @@ export function CookbookLangGraph() {
           <p className="text-xs text-muted-foreground/50 font-body mb-1">OpenGAP / Cookbook /</p>
           <h2 className="text-2xl font-bold text-foreground mb-2 font-heading">LangGraph → OpenGAP</h2>
           <p className="text-sm text-muted-foreground font-body leading-relaxed">
-            Based on <code className="text-primary text-xs">langchain-ai/react-agent</code> — the official LangGraph ReAct agent template used with LangGraph Studio.
+            Based on <code className="text-primary text-xs">langchain-ai/react-agent</code> — the official LangGraph ReAct agent template.
             The agent identity lives in <code className="text-primary text-xs">prompts.py</code>, tools are exported from <code className="text-primary text-xs">tools.py</code>,
             and the graph wiring in <code className="text-primary text-xs">graph.py</code> stays in the framework.
           </p>
         </motion.div>
 
-        {/* Part 1 */}
         <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-10">
           <h3 className="text-base font-semibold text-foreground mb-1 font-heading">Part 1 — The LangGraph project</h3>
           <p className="text-[11px] text-muted-foreground/60 font-body mb-4">ReAct agent with Tavily web search, designed for LangGraph Studio:</p>
           <div className="space-y-5">
             <CodeBlock code={projectStructure} filename="file structure" />
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">prompts.py</code> — system prompt:</p>
+              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">prompts.py</code>:</p>
               <CodeBlock code={promptsPy} filename="src/react_agent/prompts.py" />
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">tools.py</code> — tool definitions:</p>
+              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">tools.py</code>:</p>
               <CodeBlock code={toolsPy} filename="src/react_agent/tools.py" />
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">graph.py</code> — agent graph (key excerpt):</p>
+              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">graph.py</code> excerpt:</p>
               <CodeBlock code={graphPy} filename="src/react_agent/graph.py" />
             </div>
           </div>
         </motion.div>
 
-        {/* Part 2 */}
         <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-10">
           <h3 className="text-base font-semibold text-foreground mb-1 font-heading">Part 2 — What maps to OpenGAP</h3>
           <div className="rounded-md border border-border overflow-hidden text-[11px] font-mono mt-4">
@@ -156,7 +159,6 @@ export function CookbookLangGraph() {
           </div>
         </motion.div>
 
-        {/* Part 3 */}
         <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-10">
           <h3 className="text-base font-semibold text-foreground mb-1 font-heading">Part 3 — Create the OpenGAP files</h3>
           <div className="space-y-5 mt-4">
@@ -165,23 +167,21 @@ export function CookbookLangGraph() {
               <CodeBlock code={agentYaml} filename="agent.yaml" />
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">SOUL.md</code> — from SYSTEM_PROMPT in prompts.py:</p>
+              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">SOUL.md</code> — from SYSTEM_PROMPT:</p>
               <CodeBlock code={soulMd} filename="SOUL.md" />
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">tools/search.yaml</code> — one file per tool:</p>
+              <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">tools/search.yaml</code> — the <code className="text-primary text-xs">implementation.path</code> points to your existing tool file:</p>
               <CodeBlock code={toolYaml} filename="tools/search.yaml" />
             </div>
           </div>
         </motion.div>
 
-        {/* Part 4 */}
         <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-10">
           <h3 className="text-base font-semibold text-foreground mb-1 font-heading">Part 4 — Validate</h3>
           <CodeBlock code={validateCmd} filename="terminal" />
         </motion.div>
 
-        {/* Steps */}
         <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
           <h3 className="text-xs uppercase tracking-widest text-muted-foreground/60 mb-3 font-body">What happens step by step</h3>
           <div className="space-y-2">

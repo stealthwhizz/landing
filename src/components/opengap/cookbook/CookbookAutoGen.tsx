@@ -66,17 +66,27 @@ description: Research assistant that searches the web and refines responses base
 model:
   preferred: gpt-4o-2024-08-06
 tools:
-  - web-search`;
+  - web-search
+agents:
+  critic:
+    description: Reviews research responses for accuracy, completeness, and clarity
+    delegation:
+      mode: auto`;
 
 const soulMd = `# Soul
 
 ## Core Identity
 You are a helpful research assistant.
 
-## Behavior
-- Search the web to find accurate, up-to-date information before answering
-- Cite your sources
-- Revise your response based on the critic's feedback`;
+## Purpose
+Find accurate, up-to-date information by searching the web before answering.
+Revise your response based on the critic's feedback.`;
+
+const rulesMd = `# Rules
+
+- Always search before answering factual questions
+- Always cite sources
+- Never fabricate URLs or citations`;
 
 const subCriticYaml = `spec_version: 0.1.0
 name: critic
@@ -107,7 +117,12 @@ input_schema:
       type: string
       description: The search topic or question
   required:
-    - query`;
+    - query
+implementation:
+  type: script
+  path: tools/web_search.py
+  runtime: python3
+  timeout: 30`;
 
 const validateCmd = `opengap validate -d ./primary-agent-opengap
 opengap info -d ./primary-agent-opengap`;
@@ -183,8 +198,12 @@ export function CookbookAutoGen() {
               <CodeBlock code={agentYaml} filename="agent.yaml" />
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground font-body mb-2">Primary agent: <code className="text-primary text-xs">SOUL.md</code>:</p>
+              <p className="text-[11px] text-muted-foreground font-body mb-2">Primary agent: <code className="text-primary text-xs">SOUL.md</code> — identity from system_message:</p>
               <CodeBlock code={soulMd} filename="SOUL.md" />
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground font-body mb-2">Primary agent: <code className="text-primary text-xs">RULES.md</code> — hard constraints from system_message:</p>
+              <CodeBlock code={rulesMd} filename="RULES.md" />
             </div>
             <div>
               <p className="text-[11px] text-muted-foreground font-body mb-2"><code className="text-primary text-xs">tools/web-search.yaml</code>:</p>
